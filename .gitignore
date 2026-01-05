@@ -1,0 +1,28 @@
+# Rust build and dependency files
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE and editor files
+.idea/
+*.iml
+*.sublime-workspace
+*.sublime-project
+*.vscode/
+.DS_Store
+
+# OS generated files
+Thumbs.db
+Desktop.ini
+
+# Backup and temp files
+*~
+*.swp
+*.tmp
+*.bak
+*.old
+
+# By default, ignore all hidden files except .gitignore
+.*
+!.gitignore
+
