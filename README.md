@@ -38,6 +38,9 @@ fn main() {
 - `gen_bool()` - Random boolean
 - `pick_random(slice)` - Pick random element from slice
 
+## crates.io:
+https://crates.io/crates/simple_rng
+
 ## License
 MIT
 

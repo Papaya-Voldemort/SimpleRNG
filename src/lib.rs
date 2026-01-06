@@ -1,5 +1,4 @@
 use std::time::{SystemTime, UNIX_EPOCH};
-
 /// Linear Congruential Generator (LCG) for pseudo-random number generation
 pub struct RNG {
     seed: u64,
@@ -77,7 +76,7 @@ impl RNG {
         if slice.is_empty() {
             None
         } else {
-            let idx = self.gen_range(0, slice.len() as u64 -1 ) as usize;
+            let idx = self.gen_range(0, slice.len() as u64 - 1) as usize;
             slice.get(idx)
         }
     }
@@ -141,5 +140,4 @@ mod tests {
         }
         assert!(v.is_empty());
     }
-
 }
