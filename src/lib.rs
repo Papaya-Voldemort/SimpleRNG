@@ -1,16 +1,51 @@
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
+
+#[cfg(feature = "std")]
 use std::time::{SystemTime, UNIX_EPOCH};
+
+
+
 /// Linear Congruential Generator (LCG) for pseudo-random number generation
+///
+/// # Example
+/// ``` rust
+/// use simple_rng::RNG;
+///
+/// let mut rng = RNG::new(0);
+/// let value = rng.next();
+/// println!("{}", value);
+/// ```
 pub struct RNG {
     seed: u64,
 }
 
 impl RNG {
     /// Constructs a new RNG with the given seed
+    ///
+    /// # Example
+    /// ``` rust
+    /// use simple_rng::RNG;
+    ///
+    /// let mut rng = RNG::new(84);
+    /// ```
     pub fn new(seed: u64) -> Self {
         Self { seed }
     }
 
     /// Constructs a new RNG seeded from the current system time
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    ///
+    /// # Example
+    /// ``` rust
+    /// use simple_rng::RNG;
+    ///
+    /// let mut rng = RNG::from_time();
+    /// ```
+    #[cfg(feature = "std")]
     pub fn from_time() -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -20,12 +55,30 @@ impl RNG {
     }
 
     /// Advances the RNG and returns the next random u64 value
+    ///
+    /// # Example
+    /// ``` rust
+    /// use simple_rng::RNG;
+    ///
+    /// let mut rng = RNG::from_time();
+    /// let value = rng.next(); // Advance the RNG
+    /// println!("{}", value);
+    /// ```
     pub fn next(&mut self) -> u64 {
         self.seed = lcg(self.seed);
         self.seed
     }
 
     /// Returns a random integer in the range [min, max] (inclusive)
+    ///
+    /// # Example
+    /// ``` rust
+    /// use simple_rng::RNG;
+    ///
+    /// let mut rng = RNG::from_time();
+    /// let value = rng.gen_range(1, 10); // Random number from 1 to 10 (inclusive)
+    /// println!("{}", value);
+    /// ```
     pub fn gen_range(&mut self, min: u64, max: u64) -> u64 {
         if max <= min {
             panic!("The maximum value must always be greater than the minimum value.")
@@ -40,6 +93,19 @@ impl RNG {
     }
 
     /// Returns a random boolean value
+    ///
+    /// # Example
+    /// ``` rust
+    /// use simple_rng::RNG;
+    ///
+    /// let mut rng = RNG::from_time();
+    /// let side = rng.gen_bool(); // Generate boolean value
+    /// if side == true {
+    /// println!("Heads")
+    /// } else {
+    /// println!("Tails")
+    /// }
+    /// ```
     pub fn gen_bool(&mut self) -> bool {
         self.next() & 1 == 1
     }
@@ -66,12 +132,19 @@ impl RNG {
         }
     }
 
-    /// Returns a random f32 value in [0.0, 1.0)
-    pub fn gen_f32(&mut self) -> f32 {
-        (self.next() as f32) / (u32::MAX as f32 + 1.0)
-    }
 
     /// Selects a random element from a non-empty slice, or None if empty
+    ///
+    /// # Example
+    /// ```rust
+    /// use simple_rng::RNG;
+    ///
+    /// let mut rng = RNG::new(123);
+    /// let v = vec![1, 2, 3, 4];
+    ///
+    /// let pick = rng.pick_random(&v);
+    /// println!("{:?}", pick);
+    /// ```
     pub fn pick_random<'a, T>(&mut self, slice: &'a [T]) -> Option<&'a T> {
         if slice.is_empty() {
             None
@@ -125,12 +198,18 @@ mod tests {
         }
         assert!(trues > 0 && falses > 0);
     }
+}
+
+
+#[cfg(all(test, feature = "std"))]
+mod std_tests {
+    use super::*;
+    use std::vec; // <-- import the vec! macro
 
     #[test]
-    /// Tests that elements can be randomly removed from a vector until empty,
     fn test_shuffle() {
         let mut rng = RNG::new(123);
-        let mut v = vec![1, 2, 3, 4];
+        let mut v = vec![1, 2, 3, 4]; // vec! now works
         while v.len() > 1 {
             let idx = rng.gen_range(0, v.len() as u64 - 1) as usize;
             v.remove(idx);
