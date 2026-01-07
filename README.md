@@ -8,6 +8,7 @@ A minimal, dependency-free pseudo-random number generator (PRNG) library for Rus
 - Generate random numbers in a range
 - Pick random elements from slices
 - Generate random signed/unsigned integers of specific bit sizes
+- Algorithm selection: LCG (default), PCG (with `pcg` feature)
 - No external dependencies
 - `no_std` compatible (default feature: `std`)
 
@@ -16,7 +17,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-simple_rng = "0.2.0"
+simple_rng = "0.3.0"
 ```
 
 Import and use in your code:
@@ -31,12 +32,23 @@ fn main() {
 }
 ```
 
+### Algorithm Selection
+You can select the algorithm at runtime:
+
+```rust
+use simple_rng::{RNG, Algorithm};
+
+let mut rng = RNG::new(42);
+rng.set_algorithm(Algorithm::Lcg); // or Algorithm::Pcg if enabled
+```
+
 ## API Overview
 - `RNG::new(seed: u64)` - Create with a custom seed
 - `RNG::from_time()` - Create seeded from system time (requires `std` feature)
+- `set_algorithm(Algorithm)` - Select LCG or PCG (if enabled)
 - `next()` - Next random u64
 - `gen_range(min, max)` - Random integer in [min, max]
-- `gen_float()` / `gen_f32()` - Random float in [0.0, 1.0)
+- `gen_float()` - Random float in [0.0, 1.0)
 - `gen_bool()` - Random boolean
 - `gen_unsigned(size: u8)` - Random unsigned integer (8, 16, 32, 64 bits)
 - `gen_signed(size: u8)` - Random signed integer (8, 16, 32, 64 bits)
@@ -44,6 +56,7 @@ fn main() {
 
 ## Features
 - `std` (enabled by default): Enables seeding from system time and other standard library features.
+- `pcg`: Enables the PCG algorithm for improved randomness.
 - `no_std`: Use in embedded or constrained environments.
 
 ## Minimum Supported Rust Edition

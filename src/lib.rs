@@ -6,43 +6,52 @@ extern crate std;
 #[cfg(feature = "std")]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Supported random number generator algorithms
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Algorithm {
+    /// Linear Congruential Generator (default)
+    Lcg,
+    /// Permuted Congruential Generator (requires `pcg` feature)
+    #[cfg(feature = "pcg")]
+    Pcg,
+}
 
-
-/// Linear Congruential Generator (LCG) for pseudo-random number generation
+/// A simple, seedable pseudo-random number generator
 ///
 /// # Example
-/// ``` rust
+/// ```rust
 /// use simple_rng::RNG;
-///
 /// let mut rng = RNG::new(0);
 /// let value = rng.next();
 /// println!("{}", value);
 /// ```
 pub struct RNG {
     seed: u64,
+    algorithm: Algorithm,
 }
 
 impl RNG {
-    /// Constructs a new RNG with the given seed
+    /// Create a new RNG with the given seed
     ///
     /// # Example
-    /// ``` rust
+    /// ```rust
     /// use simple_rng::RNG;
-    ///
     /// let mut rng = RNG::new(84);
     /// ```
     pub fn new(seed: u64) -> Self {
-        Self { seed }
+        Self {
+            seed,
+            algorithm: Algorithm::Lcg,
+        }
     }
 
-    /// Constructs a new RNG seeded from the current system time
+    /// Create a new RNG seeded from the current system time
     ///
-    /// This method is only available when the `std` feature is enabled.
+    /// Only available with the `std` feature.
     ///
     /// # Example
-    /// ``` rust
+    /// ```rust
     /// use simple_rng::RNG;
-    ///
     /// let mut rng = RNG::from_time();
     /// ```
     #[cfg(feature = "std")]
@@ -51,66 +60,71 @@ impl RNG {
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards");
         let seed = now.as_nanos() as u64;
-        Self { seed }
+        Self {
+            seed,
+            algorithm: Algorithm::Lcg,
+        }
     }
 
-    /// Advances the RNG and returns the next random u64 value
+    /// Set the RNG algorithm (LCG or PCG)
+    pub fn set_algorithm(&mut self, algorithm: Algorithm) {
+        self.algorithm = algorithm;
+    }
+
+    /// Advance the RNG and return the next random u64 value
     ///
     /// # Example
-    /// ``` rust
+    /// ```rust
     /// use simple_rng::RNG;
-    ///
     /// let mut rng = RNG::from_time();
-    /// let value = rng.next(); // Advance the RNG
+    /// let value = rng.next();
     /// println!("{}", value);
     /// ```
     pub fn next(&mut self) -> u64 {
-        self.seed = lcg(self.seed);
+        self.seed = match self.algorithm {
+            Algorithm::Lcg => lcg(self.seed),
+            #[cfg(feature = "pcg")]
+            Algorithm::Pcg => pcg(self.seed),
+        };
         self.seed
     }
 
-    /// Returns a random integer in the range [min, max] (inclusive)
+    /// Generate a random integer in the range [min, max] (inclusive)
     ///
     /// # Example
-    /// ``` rust
+    /// ```rust
     /// use simple_rng::RNG;
-    ///
     /// let mut rng = RNG::from_time();
-    /// let value = rng.gen_range(1, 10); // Random number from 1 to 10 (inclusive)
+    /// let value = rng.gen_range(1, 10);
     /// println!("{}", value);
     /// ```
     pub fn gen_range(&mut self, min: u64, max: u64) -> u64 {
         if max <= min {
-            panic!("The maximum value must always be greater than the minimum value.")
+            panic!("max must be greater than min")
         }
         let range = max - min + 1;
         (self.next() % range) + min
     }
 
-    /// Returns a random floating-point value in [0.0, 1.0)
+    /// Generate a random floating-point value in [0.0, 1.0)
     pub fn gen_float(&mut self) -> f64 {
-        (self.next() as f64) / (u32::MAX as f64 + 1.0)
+        (self.next() as f64) / (u64::MAX as f64 + 1.0)
     }
 
-    /// Returns a random boolean value
+    /// Generate a random boolean value
     ///
     /// # Example
-    /// ``` rust
+    /// ```rust
     /// use simple_rng::RNG;
-    ///
     /// let mut rng = RNG::from_time();
-    /// let side = rng.gen_bool(); // Generate boolean value
-    /// if side == true {
-    /// println!("Heads")
-    /// } else {
-    /// println!("Tails")
-    /// }
+    /// let side = rng.gen_bool();
+    /// println!("{}", if side { "Heads" } else { "Tails" });
     /// ```
     pub fn gen_bool(&mut self) -> bool {
         self.next() & 1 == 1
     }
 
-    /// Returns a random unsigned integer of the specified bit size
+    /// Generate a random unsigned integer of the specified bit size (8, 16, 32, 64)
     pub fn gen_unsigned(&mut self, size: u8) -> usize {
         match size {
             8 => self.next() as u8 as usize,
@@ -121,7 +135,7 @@ impl RNG {
         }
     }
 
-    /// Returns a random signed integer of the specified bit size
+    /// Generate a random signed integer of the specified bit size (8, 16, 32, 64)
     pub fn gen_signed(&mut self, size: u8) -> isize {
         match size {
             8 => self.next() as i8 as isize,
@@ -132,16 +146,13 @@ impl RNG {
         }
     }
 
-
-    /// Selects a random element from a non-empty slice, or None if empty
+    /// Pick a random element from a non-empty slice, or None if empty
     ///
     /// # Example
     /// ```rust
     /// use simple_rng::RNG;
-    ///
     /// let mut rng = RNG::new(123);
     /// let v = vec![1, 2, 3, 4];
-    ///
     /// let pick = rng.pick_random(&v);
     /// println!("{:?}", pick);
     /// ```
@@ -155,11 +166,21 @@ impl RNG {
     }
 }
 
-// Linear Congruential Generator function (private)
+// Linear Congruential Generator (LCG) function
 fn lcg(seed: u64) -> u64 {
-    let a: u64 = 1664525;
-    let c: u64 = 1013904223;
-    (a.wrapping_mul(seed).wrapping_add(c) as u32) as u64
+    seed.wrapping_mul(6364136223846793005).wrapping_add(1)
+}
+
+/// Permuted Congruential Generator (PCG-XSH-RR)
+///
+/// Uses LCG as the internal engine, then scrambles output for improved randomness.
+/// Only available with the `pcg` feature.
+#[cfg(feature = "pcg")]
+fn pcg(seed: u64) -> u64 {
+    let state = lcg(seed);
+    let xorshifted = ((state >> 18) ^ state) >> 27;
+    let rot = (state >> 59) as u32;
+    xorshifted.rotate_right(rot)
 }
 
 #[cfg(test)]
@@ -167,7 +188,7 @@ mod tests {
     use super::*;
 
     #[test]
-    /// Verifies that calling next() changes the RNG's seed
+    /// next() should change the RNG's seed
     fn test_next_changes_seed() {
         let mut rng = RNG::new(123);
         let old_seed = rng.seed;
@@ -176,15 +197,15 @@ mod tests {
     }
 
     #[test]
-    /// Ensures gen_range returns a value within the specified bounds
+    /// gen_range returns a value within the specified bounds
     fn test_gen_range_bounds() {
         let mut rng = RNG::new(42);
         let val = rng.gen_range(10, 20);
-        assert!(val >= 10 && val < 20);
+        assert!(val >= 10 && val <= 20);
     }
 
     #[test]
-    /// Checks that gen_bool produces both true and false values over many samples
+    /// gen_bool produces both true and false values over many samples
     fn test_gen_bool_distribution() {
         let mut rng = RNG::new(1);
         let mut trues = 0;
@@ -200,16 +221,15 @@ mod tests {
     }
 }
 
-
 #[cfg(all(test, feature = "std"))]
 mod std_tests {
     use super::*;
-    use std::vec; // <-- import the vec! macro
+    use std::vec;
 
     #[test]
     fn test_shuffle() {
         let mut rng = RNG::new(123);
-        let mut v = vec![1, 2, 3, 4]; // vec! now works
+        let mut v = vec![1, 2, 3, 4];
         while v.len() > 1 {
             let idx = rng.gen_range(0, v.len() as u64 - 1) as usize;
             v.remove(idx);
