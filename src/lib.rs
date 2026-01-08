@@ -125,6 +125,14 @@ impl RNG {
     }
 
     /// Generate a random unsigned integer of the specified bit size (8, 16, 32, 64)
+    ///
+    /// # Example
+    /// ```rust
+    /// use simple_rng::RNG;
+    /// let mut rng = RNG::from_time();
+    /// let number = rng.gen_unsigned(8);
+    /// println!("This number is positive: {}!", number);
+    /// ```
     pub fn gen_unsigned(&mut self, size: u8) -> usize {
         match size {
             8 => self.next() as u8 as usize,
@@ -136,6 +144,14 @@ impl RNG {
     }
 
     /// Generate a random signed integer of the specified bit size (8, 16, 32, 64)
+    ///
+    /// # Example
+    /// ```rust
+    /// use simple_rng::RNG;
+    /// let mut rng = RNG::from_time();
+    /// let number = rng.gen_signed(8);
+    /// println!("This number is {}!", if number > 0 { "Positive" } else { "Negative" });
+    /// ```
     pub fn gen_signed(&mut self, size: u8) -> isize {
         match size {
             8 => self.next() as i8 as isize,
@@ -175,6 +191,14 @@ fn lcg(seed: u64) -> u64 {
 ///
 /// Uses LCG as the internal engine, then scrambles output for improved randomness.
 /// Only available with the `pcg` feature.
+///
+/// # Example
+/// ```rust
+/// use simple_rng::Algorithm::Pcg;
+/// use simple_rng::RNG;
+/// let mut rng = RNG::from_time();
+/// rng.set_algorithm(Pcg);
+/// ```
 #[cfg(feature = "pcg")]
 fn pcg(seed: u64) -> u64 {
     let state = lcg(seed);
@@ -197,9 +221,32 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "pcg")]
+    /// next() should change the RNG's seed (uses pcg)
+    fn test_next_changes_seed_pcg() {
+        use crate::Algorithm::Pcg;
+        let mut rng = RNG::new(123);
+        rng.set_algorithm(Pcg);
+        let old_seed = rng.seed;
+        let _ = rng.next();
+        assert_ne!(rng.seed, old_seed);
+    }
+
+    #[test]
     /// gen_range returns a value within the specified bounds
     fn test_gen_range_bounds() {
         let mut rng = RNG::new(42);
+        let val = rng.gen_range(10, 20);
+        assert!(val >= 10 && val <= 20);
+    }
+
+    #[test]
+    #[cfg(feature = "pcg")]
+    /// gen_range returns a value within the specified bounds (uses pcg)
+    fn test_gen_range_bounds_pcg() {
+        use crate::Algorithm::Pcg;
+        let mut rng = RNG::new(42);
+        rng.set_algorithm(Pcg);
         let val = rng.gen_range(10, 20);
         assert!(val >= 10 && val <= 20);
     }
@@ -219,6 +266,25 @@ mod tests {
         }
         assert!(trues > 0 && falses > 0);
     }
+
+    #[test]
+    #[cfg(feature = "pcg")]
+    /// gen_bool produces both true and false values over many samples (uses pcg)
+    fn test_gen_bool_distribution_pcg() {
+        use crate::Algorithm::Pcg;
+        let mut rng = RNG::new(1);
+        rng.set_algorithm(Pcg);
+        let mut trues = 0;
+        let mut falses = 0;
+        for _ in 0..1000 {
+            if rng.gen_bool() {
+                trues += 1;
+            } else {
+                falses += 1;
+            }
+        }
+        assert!(trues > 0 && falses > 0);
+    }
 }
 
 #[cfg(all(test, feature = "std"))]
@@ -227,8 +293,27 @@ mod std_tests {
     use std::vec;
 
     #[test]
+    /// Tests removing from a vector? Not sure why this is here might be legacy code ;)
     fn test_shuffle() {
         let mut rng = RNG::new(123);
+        let mut v = vec![1, 2, 3, 4];
+        while v.len() > 1 {
+            let idx = rng.gen_range(0, v.len() as u64 - 1) as usize;
+            v.remove(idx);
+        }
+        if !v.is_empty() {
+            v.remove(0);
+        }
+        assert!(v.is_empty());
+    }
+
+    #[test]
+    #[cfg(feature = "pcg")]
+    /// Tests removing from a vector? Not sure why this is here might be legacy code ;) (uses pcg)
+    fn test_shuffle_pcg() {
+        use crate::Algorithm::Pcg;
+        let mut rng = RNG::new(123);
+        rng.set_algorithm(Pcg);
         let mut v = vec![1, 2, 3, 4];
         while v.len() > 1 {
             let idx = rng.gen_range(0, v.len() as u64 - 1) as usize;
