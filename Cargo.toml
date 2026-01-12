@@ -1,6 +1,6 @@
 [package]
 name = "simple_rng"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["SandersonFan <elinelson992@gmail.com>"]
 edition = "2024"
 description = "A simple Linear Congruential Generator (LCG) for pseudo-random numbers"

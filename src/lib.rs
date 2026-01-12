@@ -6,6 +6,9 @@ extern crate std;
 #[cfg(feature = "std")]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(feature = "std")]
+use std::process;
+
 /// Supported random number generator algorithms
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Algorithm {
@@ -58,13 +61,81 @@ impl RNG {
     pub fn from_time() -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards");
-        let seed = now.as_nanos() as u64;
+            .expect("Time went backwards")
+            .as_nanos();
+        let pid = process::id() as u128;
+        let seed = now ^ (pid << 32);
         Self {
-            seed,
+            seed: seed as u64,
             algorithm: Algorithm::Lcg,
         }
     }
+
+    /// Create a new RNG seeded from the current system entropy
+    ///
+    /// Only available with the `std` feature, additionally this is a beta feature.
+    /// This method uses operating system randomness and may not be available on all platforms.
+    ///
+    /// # Example
+    /// ```rust
+    /// use simple_rng::RNG;
+    /// let mut rng = RNG::from_entropy();
+    /// ```
+    #[cfg(feature = "std")]
+    pub fn from_entropy() -> Self {
+        let mut buf = [0u8; 8];
+
+        #[cfg(unix)]
+        {
+            use std::fs::File;
+            use std::io::Read;
+
+            let mut f = File::open("/dev/urandom")
+                .expect("failed to open /dev/urandom");
+            f.read_exact(&mut buf)
+                .expect("failed to read from /dev/urandom");
+        }
+
+        #[cfg(windows)]
+        {
+            use core::ffi::c_void;
+
+            #[link(name = "bcrypt")]
+            extern "system" {
+                fn BCryptGenRandom(
+                    hAlgorithm: *mut c_void,
+                    pbBuffer: *mut u8,
+                    cbBuffer: u32,
+                    dwFlags: u32,
+                ) -> i32;
+            }
+
+            const BCRYPT_USE_SYSTEM_PREFERRED_RNG: u32 = 0x00000002;
+
+            let status = unsafe {
+                BCryptGenRandom(
+                    core::ptr::null_mut(),
+                    buf.as_mut_ptr(),
+                    buf.len() as u32,
+                    BCRYPT_USE_SYSTEM_PREFERRED_RNG,
+                )
+            };
+
+            if status != 0 {
+                panic!("BCryptGenRandom failed");
+            }
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        compile_error!("from_entropy is not supported on this platform");
+
+        Self {
+            seed: u64::from_le_bytes(buf),
+            algorithm: Algorithm::Lcg,
+        }
+    }
+
+
 
     /// Set the RNG algorithm (LCG or PCG)
     pub fn set_algorithm(&mut self, algorithm: Algorithm) {

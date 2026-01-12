@@ -2,6 +2,8 @@
 
 A minimal, dependency-free pseudo-random number generator (PRNG) library for Rust, based on a Linear Congruential Generator (LCG).
 
+### **This RNG is not cryptographically secure, even when seeded from entropy.**
+
 ## Features
 - Seedable random number generator
 - Generate random integers, floats, booleans
@@ -45,6 +47,7 @@ rng.set_algorithm(Algorithm::Lcg); // or Algorithm::Pcg if enabled
 ## API Overview
 - `RNG::new(seed: u64)` - Create with a custom seed
 - `RNG::from_time()` - Create seeded from system time (requires `std` feature)
+- `RNG::from_entropy()` - Generates seed from system entropy (beta, requires `std` feature)
 - `set_algorithm(Algorithm)` - Select LCG or PCG (if enabled)
 - `next()` - Next random u64
 - `gen_range(min, max)` - Random integer in [min, max]
@@ -55,7 +58,7 @@ rng.set_algorithm(Algorithm::Lcg); // or Algorithm::Pcg if enabled
 - `pick_random(slice)` - Pick random element from slice, returns `Option<&T>`
 
 ## Features
-- `std` (enabled by default): Enables seeding from system time and other standard library features.
+- `std` (enabled by default): Enables seeding from system time or entropy and other standard library features.
 - `pcg`: Enables the PCG algorithm for improved randomness.
 - `no_std`: Use in embedded or constrained environments.
 
